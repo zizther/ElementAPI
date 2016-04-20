@@ -29,16 +29,22 @@ class ElementApiController extends BaseController
 	 */
 	public function actionGetElements($configFactory = null, array $config = null)
 	{
+		$params = craft()->urlManager->getRouteParams();
+	        //$template = (isset($params['template']) ? $params['template'] : null);
+		
 		if ($configFactory !== null)
 		{
-			$params = craft()->urlManager->getRouteParams();
+			//$params = craft()->urlManager->getRouteParams();
 			$variables = (isset($params['variables']) ? $params['variables'] : null);
+			//$template = (isset($params['template']) ? $params['template'] : null);
 			$config = $this->_callWithParams($configFactory, $variables);
 		}
 
 		// Merge in default config options
 		$config = array_merge(
 			[
+				'cache' => craft()->config->get('enableTemplateCaching'),
+ 				'cacheTime' => craft()->config->get('cacheDuration'),
 				'paginate' => true,
 				'pageParam' => 'page',
 				'elementsPerPage' => 100,
@@ -48,6 +54,19 @@ class ElementApiController extends BaseController
 			craft()->config->get('defaults', 'elementapi'),
 			$config
 		);
+		
+		// Find out if a page param is set and cache the specific page
+ 		$pageParam = craft()->request->getQuery($config['pageParam']);
+	    $template = (isset($params['template']) ? $params['template'].'?'.$config['pageParam'].'='.$pageParam : null);
+
+		// If Cache is set and a cache file is found, bail.
+ 		if($config['cache'] && craft()->cache->get($template))
+ 		{
+ 			JsonHelper::sendJsonHeaders();
+ 			echo craft()->cache->get($template);
+ 			craft()->end();
+ 		}
+ 
 
 		if ($config['pageParam'] == 'p')
 		{
@@ -118,6 +137,15 @@ class ElementApiController extends BaseController
 		}
 
 		JsonHelper::sendJsonHeaders();
+		
+		$JsonValue = $fractal->createData($resource)->toJson();
+ 		echo $JsonValue;
+ 
+ 		// Cache the response
+ 		if($config['cache'])
+ 		{
+ 			craft()->cache->set($template, $JsonValue, $config['cacheTime']);	
+ 		}
 
 		$data = $fractal->createData($resource);
 
