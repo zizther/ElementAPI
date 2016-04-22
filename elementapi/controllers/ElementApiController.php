@@ -139,8 +139,7 @@ class ElementApiController extends BaseController
 		JsonHelper::sendJsonHeaders();
 		
 		$JsonValue = $fractal->createData($resource)->toJson();
- 		echo $JsonValue;
- 
+
  		// Cache the response
  		if($config['cache'])
  		{
